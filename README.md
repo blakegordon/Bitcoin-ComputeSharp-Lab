@@ -1,6 +1,6 @@
 # Bitcoin-ComputeSharp-Lab
 
-Welcome to an experimental but functional GPU Bitcoin miner built with .NET (only). We use Sergio Pedri's [ComputeSharp](https://github.com/Sergio0694/ComputeSharp) package to define a DX12 compute shader in C# and transpile it to HLSL.
+Welcome to an experimental but functional GPU Bitcoin miner, built with .NET (only). It looks for winning hashes using Sergio Pedri's [ComputeSharp](https://github.com/Sergio0694/ComputeSharp) package. 
 
 *Note: Non-ASIC-based mining on the live Bitcoin network has been obsolete for over a decade. Still, it never hurts to dream.*
 
