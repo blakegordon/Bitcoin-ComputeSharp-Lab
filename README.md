@@ -80,7 +80,7 @@ If your node is remote, or if you are using explicit RPC credentials, pass them 
 miner --rpc-url http://192.168.1.100:8332 --rpc-user alice --rpc-password bob 
 ```
 
-### Tuning the Dispatch Chunk Size
+### Tuning
 The compute shader's dispatch behavior can be tuned using the `--chunk` parameter (number of nonces evaluated per GPU dispatch).
 
 ```cmd
