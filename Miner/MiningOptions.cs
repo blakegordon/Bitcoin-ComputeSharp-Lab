@@ -11,6 +11,7 @@ internal sealed record MiningOptions
 
     public long GpuWorkChunkSize { get; init; } = 2_000_000_000L;
     public int MaxGpuDevices { get; init; } = 2;
+    public bool Benchmark { get; init; } = false;
 
     const string DefaultPayoutScriptHex = "0014b1decf078678a2c716d277b66d0776caef39a214";
     public string PayoutScriptHex { get; init; } = DefaultPayoutScriptHex;
@@ -31,6 +32,7 @@ internal sealed record MiningOptions
                 case "--chunk": options = options with { GpuWorkChunkSize = long.Parse(RequireValue(args, ref i), CultureInfo.InvariantCulture) }; break;
                 case "--max-gpus": options = options with { MaxGpuDevices = int.Parse(RequireValue(args, ref i), CultureInfo.InvariantCulture) }; break;
                 case "--payout-script": options = options with { PayoutScriptHex = RequireValue(args, ref i) }; break;
+                case "--benchmark": options = options with { Benchmark = true }; break;
                 case "--help":
                 case "-h":
                     PrintHelp();
@@ -41,16 +43,19 @@ internal sealed record MiningOptions
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(options.CookiePath) && !string.IsNullOrWhiteSpace(options.RpcAuthFilePath))
+        if (!options.Benchmark)
         {
-            throw new ApplicationException("Specify only one of --cookie or --rpc-auth-file.");
-        }
+            if (!string.IsNullOrWhiteSpace(options.CookiePath) && !string.IsNullOrWhiteSpace(options.RpcAuthFilePath))
+            {
+                throw new ApplicationException("Specify only one of --cookie or --rpc-auth-file.");
+            }
 
-        bool hasExplicitAuth = !string.IsNullOrWhiteSpace(options.RpcUser) && !string.IsNullOrWhiteSpace(options.RpcPassword);
+            bool hasExplicitAuth = !string.IsNullOrWhiteSpace(options.RpcUser) && !string.IsNullOrWhiteSpace(options.RpcPassword);
 
-        if (string.IsNullOrWhiteSpace(options.CookiePath) && string.IsNullOrWhiteSpace(options.RpcAuthFilePath) && !hasExplicitAuth)
-        {
-            options = options with { CookiePath = ResolveDefaultCookiePath() };
+            if (string.IsNullOrWhiteSpace(options.CookiePath) && string.IsNullOrWhiteSpace(options.RpcAuthFilePath) && !hasExplicitAuth)
+            {
+                options = options with { CookiePath = ResolveDefaultCookiePath() };
+            }
         }
 
         return options;
@@ -74,6 +79,8 @@ internal sealed record MiningOptions
         Console.WriteLine("  miner [options]");
         Console.WriteLine();
         Console.WriteLine("Options:");
+        Console.WriteLine("  --benchmark               Run a 10-second offline hash rate benchmark.");
+        Console.WriteLine();
         Console.WriteLine("  --rpc-url <url>           Bitcoin Core RPC URL.");
         Console.WriteLine("                            Default: http://127.0.0.1:8332");
         Console.WriteLine();
@@ -98,7 +105,7 @@ internal sealed record MiningOptions
         Console.WriteLine("  -h, --help                Show this help text.");
         Console.WriteLine();
         Console.WriteLine("Examples:");
-        Console.WriteLine("  miner --max-gpus 1");
+        Console.WriteLine("  miner --benchmark --max-gpus 2");
         Console.WriteLine("  miner --rpc-url \"http://127.0.0.1:8332\" --rpc-user grok --rpc-password miner --chunk 500000000");
     }
 }

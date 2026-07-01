@@ -198,6 +198,74 @@ internal sealed class GpuMiningWorker(BitcoinRpcClient rpc, MiningOptions option
         }
     }
 
+    public Task RunBenchmarkAsync(CancellationToken cancellationToken)
+    {
+        string shortName = GetShortName(_device.Name);
+        Console.WriteLine($"  {shortName} warming up...");
+
+        uint[] zeroFlag = [0, 0];
+        uint[] gpuResult = new uint[2];
+
+        ReadWriteBuffer<uint> resultBuffer = _device.AllocateReadWriteBuffer<uint>(2);
+        resultBuffer.CopyFrom(zeroFlag);
+
+        // Dummy 80-byte header with extremely high difficulty (Mainnet equivalent)
+        byte[] headerBytes = new byte[80];
+        BinaryPrimitives.WriteUInt32LittleEndian(headerBytes.AsSpan(0, 4), 0x20000000); // Version
+        BinaryPrimitives.WriteUInt32LittleEndian(headerBytes.AsSpan(72, 4), 0x170248a3); // Bits (~133.87T difficulty)
+
+        byte[] first64 = new byte[64];
+        Buffer.BlockCopy(headerBytes, 0, first64, 0, 64);
+
+        uint[] ms = MidstateCalculator.ComputeMidstate(first64);
+        uint m0 = BinaryPrimitives.ReadUInt32BigEndian(headerBytes.AsSpan(64, 4));
+        uint m1 = SwapTimeForShader(ReadTimeNative(headerBytes));
+        uint m2 = BinaryPrimitives.ReadUInt32BigEndian(headerBytes.AsSpan(72, 4));
+
+        uint[] t = BuildTargetWords(0x170248a3);
+
+        // Stagger starting nonce per GPU
+        long currentNonce = (long)_gpuIndex * 0x10000000L;
+        long totalHashes = 0;
+
+        Stopwatch sw = Stopwatch.StartNew();
+
+        try
+        {
+            // Run exactly 10 seconds per GPU
+            while (sw.Elapsed.TotalSeconds < 10 && !cancellationToken.IsCancellationRequested)
+            {
+                long candidateCount = _options.GpuWorkChunkSize;
+
+                bool chunkHit = ExecuteShaderChunk(_device, ms, m0, m1, m2, t, currentNonce, candidateCount, resultBuffer, gpuResult);
+
+                totalHashes += candidateCount;
+                currentNonce += candidateCount;
+
+                if (chunkHit)
+                {
+                    // In the absurdly rare case it actually finds a mainnet-difficulty block, reset the flag and keep going
+                    resultBuffer.CopyFrom(zeroFlag);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        finally
+        {
+            sw.Stop();
+            TryDispose(resultBuffer);
+            TryDispose(_device as IDisposable);
+
+            double seconds = sw.Elapsed.TotalSeconds;
+            double ghps = totalHashes / Math.Max(seconds, 1e-6) / 1_000_000_000.0;
+
+            Console.WriteLine();
+            Console.WriteLine($"[BENCHMARK] {shortName}: {ghps:F2} GH/s ({totalHashes:N0} hashes in {seconds:F2}s)");
+        }
+
+        return Task.CompletedTask;
+    }
+
     private static string GetShortName(string fullName) => fullName.Replace("NVIDIA GeForce ", "").Replace("NVIDIA ", "").Replace("GeForce ", "");
 
     private static bool IsDeviceLostException(Exception ex)

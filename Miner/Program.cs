@@ -13,6 +13,29 @@ internal static class Program
         {
             MiningOptions options = MiningOptions.Parse(args);
 
+            GraphicsDevice[] devices = [.. GraphicsDevice.QueryDevices(static d => d.IsHardwareAccelerated)];
+
+            if (devices.Length == 0)
+            {
+                Console.Error.WriteLine("No accelerated GPU devices were found. Exiting.");
+                return 1;
+            }
+
+            int maxDevices = Math.Max(1, Math.Min(options.MaxGpuDevices, devices.Length));
+            GraphicsDevice[] selectedDevices = [.. devices.Take(maxDevices)];
+
+            using CancellationTokenSource cts = new();
+            Console.CancelKeyPress += (_, e) =>
+            {
+                e.Cancel = true;
+                cts.Cancel();
+            };
+
+            if (options.Benchmark)
+            {
+                return await RunOfflineBenchmarkAsync(options, selectedDevices, cts).ConfigureAwait(false);
+            }
+
             string authMode =
                 !string.IsNullOrWhiteSpace(options.CookiePath) ? $"using auth cookie" :
                 !string.IsNullOrWhiteSpace(options.RpcAuthFilePath) ? $"rpc-auth-file '{options.RpcAuthFilePath}'" :
@@ -32,17 +55,6 @@ internal static class Program
             Console.WriteLine($"  {"Network Hashrate:",-LabelWidth + 2} {miningInfo.NetworkHashPs / 1e18:F2} exahashes per second");
             Console.WriteLine($"  {"Payout address:",-LabelWidth + 2} {decodedScript.Address ?? options.PayoutScriptHex} ({decodedScript.Type})");
 
-            GraphicsDevice[] devices = [.. GraphicsDevice.QueryDevices(static d => d.IsHardwareAccelerated)];
-
-            if (devices.Length == 0)
-            {
-                Console.Error.WriteLine("No accelerated GPU devices were found. Exiting.");
-                return 1;
-            }
-
-            int maxDevices = Math.Max(1, Math.Min(options.MaxGpuDevices, devices.Length));
-            GraphicsDevice[] selectedDevices = [.. devices.Take(maxDevices)];
-
             Console.WriteLine();
             Console.WriteLine($"Using {selectedDevices.Length} GPU device(s):");
             for (int i = 0; i < selectedDevices.Length; i++)
@@ -50,19 +62,9 @@ internal static class Program
                 Console.WriteLine($"  [{i}] {selectedDevices[i].Name}");
             }
 
-            using CancellationTokenSource cts = new();
-            Console.CancelKeyPress += (_, e) =>
-            {
-                e.Cancel = true;
-                cts.Cancel();
-            };
+            Task[] rpcWorkers = [.. selectedDevices.Select((device, index) => Task.Run(() => new GpuMiningWorker(rpc, options, device, index).RunAsync(cts.Token), cts.Token))];
 
-            Task[] workers =
-            [
-                .. selectedDevices.Select((device, index) => Task.Run(() => new GpuMiningWorker(rpc, options, device, index).RunAsync(cts.Token), cts.Token))
-            ];
-
-            await Task.WhenAll(workers).ConfigureAwait(false);
+            await Task.WhenAll(rpcWorkers).ConfigureAwait(false);
 
             return 0;
         }
@@ -71,5 +73,24 @@ internal static class Program
             Console.Error.WriteLine($"Fatal error: {ex.Message}");
             return 2;
         }
+    }
+
+    private static async Task<int> RunOfflineBenchmarkAsync(MiningOptions options, GraphicsDevice[] selectedDevices, CancellationTokenSource cts)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"{"Mode:",-LabelWidth} Offline Benchmark (10 seconds)");
+        Console.WriteLine($"{"Target Difficulty:",-LabelWidth} ~133.87 Trillion (Mainnet)");
+        Console.WriteLine();
+        Console.WriteLine($"Using {selectedDevices.Length} GPU device(s):");
+        for (int i = 0; i < selectedDevices.Length; i++)
+        {
+            Console.WriteLine($"  [{i}] {selectedDevices[i].Name}");
+        }
+
+        // Pass null! for the RPC client since benchmark mode bypasses the network
+        Task[] workers = [.. selectedDevices.Select((device, index) => Task.Run(() => new GpuMiningWorker(null!, options, device, index).RunBenchmarkAsync(cts.Token), cts.Token))];
+        await Task.WhenAll(workers).ConfigureAwait(false);
+
+        return 0;
     }
 }
