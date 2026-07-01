@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="Miner.Tests/Miner.Tests.csproj" Id="4c2e3bb8-4ec0-44c8-94fd-5f2212f68eeb" />
+  <Project Path="Miner/Miner.csproj" />
+</Solution>
