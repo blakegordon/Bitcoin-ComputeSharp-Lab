@@ -79,14 +79,14 @@ RTX 4090:   8.58 GH/s         TITAN V:   2.56 GH/s
 If your node is remote, or if you are using explicit RPC credentials, pass them via command-line arguments:
 
 ```cmd
-miner --rpc-url http://192.168.1.100:8332 --rpc-user alice --rpc-password bob 
+miner --rpc-url http://192.168.1.100:8332 --rpc-user alice --rpc-password bob --payout-script 0014b1decf078678a2c716d277b66d0776caef39a214
 ```
 
 ### Tuning
 The compute shader's dispatch behavior can be tuned using the `--chunk` parameter (number of nonces evaluated per GPU dispatch).  High-powered hardware will show higher hash rates with larger chunk sizes.  Example:
 
 ```cmd
-miner --chunk 1000000000 --payout-script 0014b1decf078678a2c716d277b66d0776caef39a214
+miner --chunk 1000000000
 ```
 
 Enjoy!
