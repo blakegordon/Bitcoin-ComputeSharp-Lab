@@ -9,7 +9,7 @@ internal sealed record MiningOptions
     public string? CookiePath { get; init; }
     public string? RpcAuthFilePath { get; init; }
 
-    public long GpuWorkChunkSize { get; init; } = 2_000_000_000L;
+    public long GpuWorkChunkSize { get; init; } = 100_000_000L;
     public int MaxGpuDevices { get; init; } = 2;
     public bool Benchmark { get; init; } = false;
 
@@ -94,7 +94,7 @@ internal sealed record MiningOptions
         Console.WriteLine("                            File format: username:password");
         Console.WriteLine();
         Console.WriteLine("  --chunk <count>           Nonces per GPU dispatch chunk.");
-        Console.WriteLine("                            Default: 2000000000");
+        Console.WriteLine("                            Default: 100,000,000");
         Console.WriteLine();
         Console.WriteLine("  --max-gpus <count>        Maximum number of GPUs to use.");
         Console.WriteLine("                            Default: 2");

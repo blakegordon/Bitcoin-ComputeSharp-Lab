@@ -24,6 +24,8 @@ dotnet build --configuration Release
 
 cd bin\Release\net10.0
 
+miner --help
+
 miner --benchmark 
 ```
 
@@ -81,12 +83,10 @@ miner --rpc-url http://192.168.1.100:8332 --rpc-user alice --rpc-password bob
 ```
 
 ### Tuning
-The compute shader's dispatch behavior can be tuned using the `--chunk` parameter (number of nonces evaluated per GPU dispatch).
+The compute shader's dispatch behavior can be tuned using the `--chunk` parameter (number of nonces evaluated per GPU dispatch).  High-powered hardware will show higher hash rates with larger chunk sizes.  Example:
 
 ```cmd
-miner --help
-
-miner --rpc-url http://127.0.0.1:8332 --rpc-user alice --rpc-password bob --chunk 500000000
+miner --chunk 1000000000 --payout-script 0014b1decf078678a2c716d277b66d0776caef39a214
 ```
 
 Enjoy!
